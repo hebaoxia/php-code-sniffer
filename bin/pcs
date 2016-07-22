@@ -9,7 +9,7 @@ FGRED="$(tput setaf 1)"     # Red
 FGGRN="$(tput setaf 2)"     # Green
 FGYLW="$(tput setaf 3)"     # Yellow
 CODE_STD=/usr/local/etc/php-code-rule/Xnw #规则目录
-PHPCS=/usr/local/php-code-sniffer/bin/phpcs $1 #执行方法
+PHPCS=/usr/local/php-code-sniffer/bin/phpcs #执行方法
 
 function help()
 {
@@ -30,7 +30,7 @@ function phpcs_untracted()
 
 function phpcs_file()
 {
-    result=`${PHPCS} --standard=${CODE_STD} --colors ${HOME}/t/$1`
+    result=`${PHPCS} $1 --standard=${CODE_STD} --colors ${HOME}/t/$1`
     if [ "$result" == "" ]; then
         echo -e "${FGGRN}${1} ${NORM}  ${FGGRN} (*^_^*) ${NORM}"
         return 1
