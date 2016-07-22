@@ -1,0 +1,123 @@
+#!/bin/bash
+SCRIPT=`basename ${BASH_SOURCE[0]}`
+
+#Set fonts.
+NORM=`tput sgr0`
+BOLD=`tput bold`
+REV=`tput smso`
+FGRED="$(tput setaf 1)"     # Red
+FGGRN="$(tput setaf 2)"     # Green
+FGYLW="$(tput setaf 3)"     # Yellow
+CODE_STD=/usr/local/etc/php-code-rule/Xnw #规则目录
+PHPCS=/usr/local/php-code-sniffer/bin/phpcs $1 #执行方法
+
+function help()
+{
+    echo -e \\n"Help documentation for ${BOLD}${SCRIPT}${NORM}"\\n
+
+}
+
+function phpcs_untracted()
+{
+    for line in `git status --short | grep '.*\.php' | awk '{print $2}'`
+    do
+        phpcs_file $line
+    done
+    if [ $? -eq 0 ]; then
+        git status
+    fi
+}
+
+function phpcs_file()
+{
+    result=`${PHPCS} --standard=${CODE_STD} --colors ${HOME}/t/$1`
+    if [ "$result" == "" ]; then
+        echo -e "${FGGRN}${1} ${NORM}  ${FGGRN} (*^_^*) ${NORM}"
+        return 1
+    else
+        echo -e "${REV}${1}${NORM}  ${FGRED} (:>_<:) ${NORM}"
+        ${PHPCS} --standard=${CODE_STD} --colors $1
+        choice $1
+        return 1
+    fi
+}
+
+function phpcs_dir()
+{
+    if [[ $2 == "--all" ]]; then
+        ${PHPCS} --standard=${CODE_STD} --colors '^(.*\.php).$' $1 2>&1 | grep -v '|_'
+    else
+        for line in `ls -l $1 | awk '{print $9}'`
+        do
+            path="${1}/${line}"
+            if [[ -d $path ]]; then
+                phpcs_dir $path
+            else
+                php=`echo $line | grep '.php'`
+                if [[ $php ]]; then
+                    phpcs_file "${1}/${php}"
+                fi
+            fi
+        done
+    fi
+}
+
+function phpcs_commit()
+{
+    for line in `git show ${1} --oneline --name-only |grep '^[a-zA-Z]*\/.*\.php$'`
+    do
+       phpcs_file $line
+    done
+
+    if [ $? -eq 0 ]; then
+        echo 'no php file changed.'
+    fi
+}
+
+function choice()
+{
+    echo
+    read -p "1)${FGGRN}已处理${NORM} (${FGGRN}processed${NORM})
+2)${FGYLW}继  续${NORM} (${FGYLW}continue${NORM})
+3)${FGRED}跳  过${NORM} (${FGRED}skip${NORM})
+Your choice ? [-1/q to abort]: " oper_num
+
+echo
+
+    case $oper_num in
+        -1|q)
+            exit
+            ;;
+        1|processed)
+            phpcs_file $1 'processed'
+            ;;
+        2|continue)
+            phpcs_file $1 'continue'
+            ;;
+        3)
+            return 1
+            ;;
+        *)
+            phpcs_file $1
+            ;;
+    esac
+
+    return 0
+}
+if [[ $# -eq 0 ]]; then
+    phpcs_untracted
+else
+    if [[ $1 == '--help' ]]; then
+        help
+        exit
+    fi
+    if [[ -f $1 ]]; then
+        phpcs_file $1
+    elif [[ -d $1 ]]; then
+        phpcs_dir $1 $2
+    else
+        phpcs_commit $1
+    fi
+fi
+echo
+exit
